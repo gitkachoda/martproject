@@ -103,7 +103,7 @@ def coupon_worker():
         code = generate_random_code()
         try_coupon(code)
         # har request ke beech 10-15 second rukna
-        delay = random.randint(10, 15)
+        delay = random.randint(15, 25)
         log_to_console(f"⏳ Waiting {delay} seconds before next request...")
         time.sleep(delay)
 
