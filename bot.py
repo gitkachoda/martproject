@@ -44,16 +44,38 @@ def send_telegram_message(text):
     except Exception as e:
         log_to_console(f"Telegram Error: {e}")
 
-# ================= Code Generator =================
-def generate_random_code():
-    # ✅ Always 10 character alphanumeric (A-Z, 0-9)
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+# ================= Weighted Code Generator =================
+digit_weights = {
+    '1': 0.10, '2': 0.12, '3': 0.09, '4': 0.11,
+    '5': 0.18, '6': 0.15, '7': 0.08, '8': 0.10, '9': 0.07, '0': 0.08
+}
+letter_weights = {
+    'J':0.10,'G':0.12,'D':0.13,'E':0.10,'F':0.12,'C':0.11,'B':0.12,'H':0.11,'J':0.12,'K':0.11,
+    'U': 0.12, 'S': 0.10, 'M': 0.08, 'I': 0.08, 'L':0.04,'M':0.09,'N':0.13,'O':0.23,'P':0.12,
+    'Q':0.12,'W':0.12,'Y':0.12,
+    'R': 0.08, 'V': 0.07, 'Z': 0.07, 'X': 0.06, 'T': 0.05
+}
+for l in string.ascii_uppercase:
+    if l not in letter_weights:
+        letter_weights[l] = 0.01
+
+def weighted_choice(weights):
+    items = list(weights.keys())
+    probs = list(weights.values())
+    return random.choices(items, probs, k=1)[0]
+
+def generate_weighted_code():
+    # Alternate digit-letter-digit-letter... (10 chars total)
+    return ''.join(
+        weighted_choice(digit_weights) if i % 2 == 0 else weighted_choice(letter_weights)
+        for i in range(8)
+    )
 
 # ================= Coupon Worker =================
 def try_coupon(coupon_code):
     url = "https://www.jiomart.com/mst/rest/v1/5/cart/apply_coupon"
     params = {
-        "coupon_code": coupon_code,
+        "coupon_code": "5J"+coupon_code,
         "cart_id": CART_ID
     }
     headers = {
@@ -77,7 +99,7 @@ def try_coupon(coupon_code):
         reason_eng = reason_info.get("reason_eng", "")
         reason_code = reason_info.get("reason_code", "")
 
-        # ✅ Console logging (always show on Render logs)
+        # ✅ Console logging
         log_to_console(f"CODE: {coupon_code} | STATUS: {status} | REASON: {reason_eng} ({reason_code})")
         log_to_console(f"RESPONSE: {data}")
 
@@ -100,10 +122,9 @@ def try_coupon(coupon_code):
 
 def coupon_worker():
     while RUNNING:
-        code = generate_random_code()
+        code = generate_weighted_code()  # ✅ use weighted generator
         try_coupon(code)
-        # har request ke beech 10-15 second rukna
-        delay = random.randint(15, 25)
+        delay = random.randint(20, 25)  # thoda slow rakha hai
         log_to_console(f"⏳ Waiting {delay} seconds before next request...")
         time.sleep(delay)
 
@@ -121,5 +142,5 @@ if __name__ == "__main__":
     send_telegram_message("✅ <b>Coupon Bot Started</b>\nServer is now running and trying coupons...")
     t = threading.Thread(target=coupon_worker, daemon=True)
     t.start()
-    port = int(os.environ.get("PORT", 10000))  # Render ke liye port fix
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
